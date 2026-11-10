@@ -1,0 +1,42 @@
+services:
+  translate:
+    build: .
+    image: nllb-translate:0.1.0
+    ports:
+      # Solo local: no hay autenticación. Para abrirlo a la red, ponlo tras un gateway/VPN
+      # que añada auth y rate-limit por IP, y publica entonces el puerto en esa interfaz.
+      - "127.0.0.1:8000:8000"
+    environment:
+      # 0 = autodetectar según la cuota de CPU del contenedor.
+      CT2_INTRA_THREADS: "0"
+      BEAM_SIZE: "4"
+      MAX_INPUT_CHARS: "50000"
+      # Traducciones simultáneas (en curso o en cola); la siguiente recibe 503. 0 = sin tope.
+      MAX_CONCURRENT_REQUESTS: "8"
+      # Tiempo máximo por petición, en segundos (se comprueba entre trozos). 0 = sin límite.
+      REQUEST_TIMEOUT_SECONDS: "900"
+      # /docs carga Swagger UI desde un CDN: pon "0" en entornos aislados.
+      ENABLE_DOCS: "1"
+      # DEBUG | INFO | WARNING | ERROR | CRITICAL
+      LOG_LEVEL: "INFO"
+      # Solo si otra web llama a la API desde el navegador (lista separada por comas).
+      CORS_ORIGINS: ""
+    mem_limit: 2g
+    cpus: 4
+    pids_limit: 256
+    init: true
+    # Mayor que `--timeout-graceful-shutdown` de uvicorn (25 s): los streams terminan solos.
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
